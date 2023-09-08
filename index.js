@@ -13,10 +13,14 @@ async function main() {
         fs.writeFileSync('db.json', JSON.stringify(data))
     }
     fireUpHTTP()
-    let dirs = ['Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
-    // parseFiles(`${os.homedir()}\\Downloads`)
-    for (let dir of dirs) {
-        parseFiles(`${os.homedir()}\\${dir}`, dir)
+    //windows directories
+    const wDirs = ['Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
+    //unix directories (accidentally the same!)
+    const uDirs = ['Desktop', 'Documents', 'Downloads', 'Music', 'Pictures', 'Videos']
+    // parseFiles(`${os.homedir()}/Downloads`)
+    for (let dir of wDirs) {
+        console.log(dir)
+        parseFiles(`${os.homedir()}/${dir}`, dir)
     }
 }
 
@@ -32,13 +36,20 @@ function fireUpHTTP() {
 }
 
 function replace(path, fileName, dir) {
-    const backup = fs.readFileSync(path)
-    fs.mkdir(`${os.homedir()}\\yourimages\\${dir}`, (err) => {
+    
+    const data = JSON.parse(fs.readFileSync('./db.json').toString())
+    for (var file2 of data) {
+        if (file2.original == path || file2.currentPath == path) {
+            return;
+        }
+    }
+        const backup = fs.readFileSync(path)
+    fs.mkdir(`${os.homedir()}/yourimages/${dir}`, {recursive: true}, (err) => {
         console.log(err)
     })
     
-    fs.writeFileSync(`${os.homedir()}\\yourimages\\${dir}\\${fileName}`, backup)
-    pushToDB(fileName, path, `${os.homedir()}\\yourimages\\${dir}\\${fileName}`)
+    fs.writeFileSync(`${os.homedir()}/yourimages/${dir}/${fileName}`, backup)
+    pushToDB(fileName, path, `${os.homedir()}/yourimages/${dir}/${fileName}`)
     const file = fs.readFileSync('./img.jpg')
     fs.writeFileSync(path, file, (err) => {
         console.log(err)
@@ -60,7 +71,8 @@ function restore() {
     for (let entry of data) {
         let fileName = entry.name
         let originalPath = entry.original
-        let currentPath = entry.current
+        let currentPath = entry.currentPath
+        console.log(currentPath)
         let image = fs.readFileSync(currentPath)
         fs.writeFileSync(originalPath, image)
     }
